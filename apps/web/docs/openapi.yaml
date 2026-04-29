@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: QuizForge API
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000
+paths:
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Auth session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+  /auth/me:
+    get:
+      summary: Current session
+      responses:
+        '200':
+          description: Auth session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+  /auth/logout:
+    post:
+      summary: Logout
+      responses:
+        '204': { description: Logged out }
+  /dashboard:
+    get:
+      summary: Dashboard KPIs
+      responses:
+        '200': { description: DashboardSummary }
+  /questions:
+    get:
+      summary: List authoring questions
+      description: Instructor/admin only. May include answerKey and option.isCorrect.
+      responses:
+        '200':
+          description: PageResult of AuthoringQuestion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuthoringQuestion' }
+                  total: { type: integer }
+    post:
+      summary: Create authoring question
+      responses:
+        '201':
+          description: AuthoringQuestion
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthoringQuestion' }
+  /questions/{id}:
+    patch:
+      summary: Update authoring question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: AuthoringQuestion
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthoringQuestion' }
+    delete:
+      summary: Delete question
+      responses:
+        '204': { description: Deleted }
+  /exams:
+    get:
+      summary: List exams
+      responses:
+        '200': { description: PageResult of Exam }
+    post:
+      summary: Create exam
+      responses:
+        '201': { description: Exam }
+  /exams/{id}:
+    get:
+      summary: Get exam
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Exam }
+    patch:
+      summary: Update exam
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Exam }
+  /exams/{id}/publish:
+    post:
+      summary: Publish exam
+      responses:
+        '200': { description: Exam }
+  /live/exams/{id}:
+    get:
+      summary: Get live room state
+      responses:
+        '200': { description: LiveRoom }
+  /live/exams/{id}/start:
+    post:
+      summary: Start live room
+      responses:
+        '200': { description: LiveRoom }
+  /live/exams/{id}/next:
+    post:
+      summary: Open next question
+      responses:
+        '200': { description: LiveRoom }
+  /live/exams/{id}/pause:
+    post:
+      summary: Pause live room
+      responses:
+        '200': { description: LiveRoom }
+  /live/exams/{id}/end:
+    post:
+      summary: End live room
+      responses:
+        '200': { description: LiveRoom }
+  /student/join:
+    post:
+      summary: Join exam by code
+      description: Must return PublicQuestion only. Never include answerKey or option.isCorrect.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [joinCode, displayName]
+              properties:
+                joinCode: { type: string }
+                displayName: { type: string }
+      responses:
+        '200':
+          description: Room, participant, exam, and safe questions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [room, participant, exam, questions]
+                properties:
+                  room: { $ref: '#/components/schemas/LiveRoom' }
+                  participant: { $ref: '#/components/schemas/Participant' }
+                  exam: { $ref: '#/components/schemas/Exam' }
+                  questions:
+                    type: array
+                    items: { $ref: '#/components/schemas/PublicQuestion' }
+  /student/exams/{id}/attempts:
+    post:
+      summary: Start student attempt
+      responses:
+        '200': { description: Attempt }
+  /student/attempts/{id}/answers:
+    post:
+      summary: Submit answer
+      responses:
+        '200': { description: Attempt }
+  /student/attempts/{id}/finish:
+    post:
+      summary: Finish attempt
+      responses:
+        '200': { description: Attempt }
+  /reports/exams/{id}:
+    get:
+      summary: Report summary
+      responses:
+        '200': { description: ReportSummary }
+  /proctoring/exams/{id}/events:
+    get:
+      summary: Proctor events
+      responses:
+        '200': { description: ProctorEvent array }
+components:
+  schemas:
+    AuthSession:
+      type: object
+      required: [user, organization, tokens]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        organization: { $ref: '#/components/schemas/Organization' }
+        tokens:
+          type: object
+          required: [accessToken, expiresAt]
+          properties:
+            accessToken: { type: string }
+            refreshToken:
+              type: string
+              description: Prefer httpOnly cookie/session in production instead of exposing this to browser JS.
+            expiresAt: { type: string, format: date-time }
+    Organization:
+      type: object
+      required: [id, name, slug, plan]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        plan: { type: string, enum: [free, pro, enterprise] }
+    User:
+      type: object
+      required: [id, orgId, name, email, role]
+      properties:
+        id: { type: string }
+        orgId: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, instructor, student, proctor] }
+    PublicQuestionOption:
+      type: object
+      required: [id, label, text]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        text: { type: string }
+    AuthoringQuestionOption:
+      allOf:
+        - $ref: '#/components/schemas/PublicQuestionOption'
+        - type: object
+          properties:
+            isCorrect: { type: boolean }
+    PublicQuestion:
+      type: object
+      required: [id, orgId, type, title, prompt, options, tags, difficulty, points, updatedAt, safeFor]
+      properties:
+        id: { type: string }
+        orgId: { type: string }
+        type: { type: string }
+        title: { type: string }
+        prompt: { type: string }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/PublicQuestionOption' }
+        tags:
+          type: array
+          items: { type: string }
+        difficulty: { type: string, enum: [easy, medium, hard] }
+        points: { type: number }
+        timeLimitSec: { type: integer }
+        mediaUrl: { type: string }
+        updatedAt: { type: string, format: date-time }
+        safeFor: { type: string, enum: [student, live] }
+    AuthoringQuestion:
+      allOf:
+        - $ref: '#/components/schemas/PublicQuestion'
+        - type: object
+          required: [answerKey, createdBy]
+          properties:
+            options:
+              type: array
+              items: { $ref: '#/components/schemas/AuthoringQuestionOption' }
+            answerKey:
+              type: array
+              items: { type: string }
+            explanation: { type: string }
+            createdBy: { type: string }
+    Participant:
+      type: object
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        score: { type: number }
+        progress: { type: number }
+    Exam:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        joinCode: { type: string }
+    LiveRoom:
+      type: object
+      properties:
+        id: { type: string }
+        examId: { type: string }
+        joinCode: { type: string }
+        status: { type: string }

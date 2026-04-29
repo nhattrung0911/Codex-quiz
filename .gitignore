@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.npm-cache/
+.npm-cache2/
+quizforge-fe-kit/

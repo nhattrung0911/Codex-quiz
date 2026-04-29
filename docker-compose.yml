@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: quizforge
+      POSTGRES_PASSWORD: quizforge
+      POSTGRES_DB: quizforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - quizforge_postgres:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - quizforge_redis:/data
+
+volumes:
+  quizforge_postgres:
+  quizforge_redis:

@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  instructor
+  student
+  proctor
+}
+
+enum ExamStatus {
+  draft
+  scheduled
+  live
+  paused
+  completed
+  archived
+}
+
+model Organization {
+  id        String     @id
+  name      String
+  slug      String     @unique
+  plan      String
+  users     User[]
+  questions Question[]
+  exams     Exam[]
+}
+
+model User {
+  id        String       @id
+  orgId     String
+  email     String       @unique
+  name      String
+  role      Role
+  password  String
+  org       Organization @relation(fields: [orgId], references: [id])
+  questions Question[]
+  exams     Exam[]
+}
+
+model Question {
+  id          String           @id
+  orgId       String
+  type        String
+  title       String
+  prompt      String
+  answerKey   String[]
+  explanation String?
+  tags        String[]
+  difficulty  String
+  points      Int
+  timeLimitSec Int?
+  mediaUrl    String?
+  createdById String
+  updatedAt   DateTime         @updatedAt
+  org         Organization     @relation(fields: [orgId], references: [id])
+  createdBy   User             @relation(fields: [createdById], references: [id])
+  options     QuestionOption[]
+  examLinks   ExamQuestion[]
+  answers     AttemptAnswer[]
+}
+
+model QuestionOption {
+  id         String   @id
+  questionId String
+  label      String
+  text       String
+  isCorrect  Boolean  @default(false)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Exam {
+  id          String         @id
+  orgId       String
+  title       String
+  description String
+  status      ExamStatus
+  joinCode    String         @unique
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdById String
+  updatedAt   DateTime       @updatedAt
+  org         Organization   @relation(fields: [orgId], references: [id])
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  settings    ExamSettings?
+  questions   ExamQuestion[]
+  attempts    Attempt[]
+  rooms       LiveRoom[]
+  events      ProctorEvent[]
+}
+
+model ExamSettings {
+  examId                 String @id
+  shuffleQuestions       Boolean
+  shuffleOptions         Boolean
+  showCorrectAfterSubmit Boolean
+  allowReview            Boolean
+  preventCopyPaste       Boolean
+  tabSwitchLimit         Int
+  cameraRequired         Boolean
+  maxAttempts            Int
+  durationMin            Int
+  exam                   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model ExamQuestion {
+  examId         String
+  questionId     String
+  order          Int
+  pointsOverride Int?
+  exam           Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id])
+
+  @@id([examId, questionId])
+}
+
+model Attempt {
+  id            String          @id
+  examId        String
+  participantId String
+  status        String
+  score         Int
+  maxScore      Int
+  startedAt     DateTime
+  submittedAt   DateTime?
+  exam          Exam            @relation(fields: [examId], references: [id])
+  answers       AttemptAnswer[]
+}
+
+model AttemptAnswer {
+  id                String   @id
+  attemptId         String
+  questionId        String
+  selectedOptionIds String[]
+  textAnswer        String?
+  answeredAt        DateTime
+  timeSpentSec      Int
+  isCorrect         Boolean?
+  scoreAwarded      Int?
+  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question          Question @relation(fields: [questionId], references: [id])
+}
+
+model LiveRoom {
+  id                   String            @id
+  examId               String
+  joinCode             String
+  status               String
+  currentQuestionIndex Int
+  startedAt            DateTime?
+  exam                 Exam              @relation(fields: [examId], references: [id])
+  participants         LiveParticipant[]
+}
+
+model LiveParticipant {
+  id          String   @id
+  roomId      String
+  userId      String?
+  displayName String
+  avatarColor String
+  joinedAt    DateTime
+  score       Int
+  progress    Int
+  isOnline    Boolean
+  violations  Int
+  room        LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model ProctorEvent {
+  id            String   @id
+  examId        String
+  participantId String
+  type          String
+  severity      String
+  message       String
+  metadata      Json?
+  createdAt     DateTime
+  exam          Exam     @relation(fields: [examId], references: [id])
+}
